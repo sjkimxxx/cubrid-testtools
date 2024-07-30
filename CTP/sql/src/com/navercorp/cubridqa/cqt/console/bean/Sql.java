@@ -41,6 +41,9 @@ public class Sql {
     // add query plan for single sql statement
     private boolean isQueryplan = false;
 
+    // Only join graph xxx
+    private boolean isJoingraph = false;
+
     private int type;
 
     private String result = "";
@@ -159,5 +162,13 @@ public class Sql {
 
     public void setQueryplan(boolean isQueryplan) {
         this.isQueryplan = isQueryplan;
+    }
+
+    public boolean isJoingraph() {
+        return isJoingraph;
+    }
+
+    public void setJoingraph(boolean isJoingraph) {
+        this.isJoingraph = isJoingraph;
     }
 }
