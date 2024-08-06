@@ -212,11 +212,11 @@ public class StringUtil {
     }
 
    /**
- *      * Show only the join graph. 
- *           *
- *                * @param queryPlan
- *                     * @return
- *                          */
+    * Show only the join graph. 
+    *
+    * @param queryPlan
+    * @return
+    */
     public static String replaceJoingraph(String queryPlan) {
         if (queryPlan == null) {
             return null;

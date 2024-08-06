@@ -75,8 +75,8 @@ public class SQLParser {
                     if ("--@queryplan".equals(line.trim())) {
                         isQueryplan = true;
                     } else if ("--@joingraph".equals(line.trim())) {
-			            isJoingraph = true;
-	                } else {
+                        isJoingraph = true;
+                    } else {
                         String controlCmd = getControlCommand(line);
                         if (controlCmd != null) {
                             // control command : either hodcas or server-message
