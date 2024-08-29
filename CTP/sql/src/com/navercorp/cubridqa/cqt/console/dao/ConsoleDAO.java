@@ -619,8 +619,9 @@ public class ConsoleDAO extends Executor {
                 method2.invoke(ps, new Object[] {true});
             }
             boolean isRs = false;
+            // [BUG] The plan is not returned when using execute() 
             if (script.startsWith("SELECT")) {
-              ResultSet rs = ps.executeQuery();
+              ps.executeQuery();
               isRs = true;
             } else {
               isRs = ps.execute();
