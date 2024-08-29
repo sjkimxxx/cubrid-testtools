@@ -1010,11 +1010,11 @@ readFile (char *fileName)
 		{
 		  hasqp = 1;
 		}
-	  else if (startswith(line, "--@joingraph"))
-	    {
-	      hasjg = 1;
-	      hasqp = 1;
-	    }
+	      else if (startswith(line, "--@joingraph"))
+		{
+		  hasjg = 1;
+		  hasqp = 1;
+		}
 	      else if (startswithCI (line, "--+ server-message") ||
 		       startswithCI (line, "--+server-message") ||
 		       startswithCI (line, "--+ holdcas") || startswithCI (line, "--+holdcas"))
