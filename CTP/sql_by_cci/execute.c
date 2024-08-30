@@ -1224,7 +1224,7 @@ formatjoingraph (FILE * fp, char *joingraph)
                   if (joingraph_found)
                    {
                      regex_t regex;
-                     // hide execution time rewriting '?'.
+                     // hide selectivity rewriting '?'.
                      replace_substring (str, "sel [0-9]+\\.[0-9]+", "sel ?");
                      fprintf (fp, "%s", str);
                      continue;
