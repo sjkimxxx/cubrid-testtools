@@ -19,7 +19,7 @@
 
 package name.fraser.neil.plaintext;
 
-
+  
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
