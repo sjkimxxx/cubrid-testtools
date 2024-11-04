@@ -24,7 +24,7 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package com.navercorp.cubridqa.cqt.console.bo;
-                          
+                            
 import com.navercorp.cubridqa.common.coreanalyzer.AnalyzerMain;
 import com.navercorp.cubridqa.cqt.common.SQLParser;
 import com.navercorp.cubridqa.cqt.console.Executor;
