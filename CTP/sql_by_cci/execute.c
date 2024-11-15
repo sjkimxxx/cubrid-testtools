@@ -58,6 +58,7 @@ typedef struct SqlStateStruct
   struct {
     bool hasqp; 
     bool onlyjg; /*join graph without queryplan */
+    bool hasfullp;
   };
 
   bool iscallwithoutvalue;
@@ -988,7 +989,7 @@ readFile (char *fileName)
   int ascii1 = 0, ascii2 = 0;
   char line[MAX_SQL_LEN];
   char sql_buf[MAXLINELENGH];
-  bool hasqp = 0,hasjg = 0;
+  bool hasqp = 0, hasjg = 0, hasfullp = 0;
 
   //initial the total sql count.
   total_sql = 0;
@@ -1010,9 +1011,14 @@ readFile (char *fileName)
 		{
 		  hasqp = 1;
 		}
-	      else if (startswith(line, "--@joingraph"))
+	      else if (startswith (line, "--@joingraph"))
 		{
 		  hasjg = 1;
+		  hasqp = 1;
+		}
+	      else if (startswith (line, "--@fullplan"))
+		{
+		  hasfullp = 1;
 		  hasqp = 1;
 		}
 	      else if (startswithCI (line, "--+ server-message") ||
@@ -1023,6 +1029,7 @@ readFile (char *fileName)
 		  strcpy (sqlstate[total_sql].sql, line);
 		  sqlstate[total_sql].hasqp = 0;
 		  sqlstate[total_sql].onlyjg = 0;
+		  sqlstate[total_sql].hasfullp = 0;
 		  //if script like "? = call"
 		  sqlstate[total_sql].iscallwithoutvalue = 0;
 
@@ -1055,6 +1062,7 @@ readFile (char *fileName)
 		  strcpy (sqlstate[total_sql].sql, sql_buf);
 		  sqlstate[total_sql].hasqp = hasqp;
 		  sqlstate[total_sql].onlyjg = hasjg;
+		  sqlstate[total_sql].hasfullp = hasfullp;
 		  //if script like "? = call"
 		  sqlstate[total_sql].iscallwithoutvalue = startswith (line, "?");
 
@@ -1064,6 +1072,7 @@ readFile (char *fileName)
 		  sql_len = 0;
 		  hasqp = 0;
 		  hasjg = 0;
+		  hasfullp = 0;
 		}
 
 	      if (is_statement_end ())
@@ -1183,65 +1192,214 @@ formatjoingraph (FILE * fp, char *joingraph)
 {
   char *str, *p;
   int i, joingraphLen, newline;
-  bool joingraph_found = false; 
+  int joinflag = 0; 
+
+  if (joingraph == NULL)
+    {
+      return;
+    }
+
   joingraphLen = strlen (joingraph);
   str = (char *) malloc (sizeof (char) * (joingraphLen + 1));
-  memset (str, 0, sizeof (char) * (joingraphLen + 1));
   p = (char *) malloc (sizeof (char) * (joingraphLen + 1));
-  memset (p, 0, sizeof (char) * (joingraphLen + 1));
-  newline = 0;
- 
-  if (joingraph != NULL)
+
+  if (str == NULL || p == NULL)
+  {
+    if (str != NULL)
     {
-      for (i = 0; i < joingraphLen; i++)
+      free(str);
+    }
+
+    if (p != NULL)
+    {
+      free(p);
+    }
+    
+    fprintf(stdout, "formatjoingraph: malloc failure\n");
+    return;
+  }
+
+  memset(str, 0, sizeof (char) * (joingraphLen + 1));
+  memset(p, 0, sizeof (char) * (joingraphLen + 1));
+
+  newline = 0;
+  
+  for (i = 0; i < joingraphLen; i++)
+    {
+      if (joingraph[i] == '\n')
         {
-          if (joingraph[i] == '\n')
+          strncpy (str, joingraph + newline, i - newline + 1);
+          strncpy (p, joingraph + newline, i - newline + 1);
+          str[i - newline + 1] = 0x00;
+          p[i - newline + 1] = 0x00;
+          newline = i + 1;
+
+          trimline (p);
+          if (strlen (p) == 0)
             {
-              strncpy (str, joingraph + newline, i - newline + 1);
-              strncpy (p, joingraph + newline, i - newline + 1);
-              str[i - newline + 1] = 0x00;
-              p[i - newline + 1] = 0x00;
-              newline = i + 1;
+              continue;
+            }
 
-              trimline (p);
-              if (strlen (p) == 0)
-                {
-                  continue;
-                }
+          if (startswith (p, "Join graph"))
+            {
+              joinflag = 1;
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          else if (startswith (p, "Query plan:"))
+            {
+              joinflag = 0;
+              continue;
+            }
 
-              if (startswith (p, "Join graph"))
-                {
-                joingraph_found = true;
-                  fprintf (fp, "%s", str);
-                  continue;
-                }
-              else if (startswith (p, "Query plan:"))
-                {
-                  break;
-                }
-              else
-                {
-                  if (joingraph_found)
-                   {
-                     regex_t regex;
-                     // hide selectivity rewriting '?'.
-                     replace_substring (str, "sel [0-9]+\\.[0-9]+", "sel ?");
-                     fprintf (fp, "%s", str);
-                     continue;
-                   }
-                }
+          if (joinflag == 1)
+            {
+              // hide selectivity by rewriting it as 'sel ?'
+              replace_substring (str, "sel [0-9]+\\.[0-9]+", "sel ?");
+              fprintf (fp, "%s", str);
             }
         }
-      strncpy (str, joingraph + newline, i - newline + 1);
-      str[i - newline + 1] = 0x00;
-      fprintf (fp, "%s", str);
-      free (str);
-      free (p);
     }
+  strncpy (str, joingraph + newline, i - newline + 1);
+  str[i - newline + 1] = 0x00;
+  fprintf (fp, "%s", str);
+
+  free (str);
+  free (p);
 }
 
+void
+formatfullplan (FILE * fp, char *queryPlan)
+{
+  char *str, *p;
+  int i, queryPlanLen, newline;
+  int isjoingraph = 0;
+  int isplan = 0;
+  int isstmt = 0;
+
+  if (queryPlan == NULL)
+    {
+      return;
+    }
+
+  queryPlanLen = strlen (queryPlan);
+  str = (char *) malloc (sizeof (char) * (queryPlanLen + 1));
+  p = (char *) malloc (sizeof (char) * (queryPlanLen + 1));
+
+  if (str == NULL || p == NULL)
+    {
+      if (str != NULL)
+        {
+          free(str);
+        }
+
+      if (p != NULL)
+        {
+          free(p);
+        }
+
+      fprintf(stdout, "formatfullplan: malloc failure\n");
+      return;
+    }
+
+  memset (str, 0, sizeof (char) * (queryPlanLen + 1));
+  memset (p, 0, sizeof (char) * (queryPlanLen + 1));
+
+  newline = 0;
+  for (i = 0; i < queryPlanLen; i++)
+    {
+      if (queryPlan[i] == '\n')
+        {
+          strncpy (str, queryPlan + newline, i - newline + 1);
+          str[i - newline + 1] = '\0';
+
+          strncpy (p, queryPlan + newline, i - newline + 1);
+          p[i - newline + 1] = '\0';
+          newline = i + 1;
+
+          trimline (p);
+          if (strlen (p) == 0)
+            {
+              continue;
+            }
+
+          // Section Identification
+          if (startswith (p, "Join graph"))
+            {
+              isjoingraph = 1;
+              isplan = 0;
+              isstmt = 0;
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          else if (startswith (p, "Query plan:"))
+            {
+              isplan = 1;
+              isjoingraph = 0;
+              isstmt = 0;
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          else if (startswith (p, "Query stmt:"))
+            {
+              isstmt = 1;
+              isjoingraph = 0;
+              isplan = 0;
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          else if (startswith (p, "Trace Statistics:"))
+            {
+              isjoingraph = 0;
+              isplan = 0;
+              isstmt = 0;
+              fprintf (fp, "%s", str);
+              continue;
+            }
+
+          // Processing Based on Section
+          if (isjoingraph)
+            {
+              replace_substring (str, "sel [0-9]+\\.[0-9]+", "sel ?");
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          if (isplan)
+            {
+              trannum (str);
+              fprintf (fp, "%s", str);
+              continue;
+            }
+          if (isstmt == 1)
+            {
+              trannum (str);
+              fprintf (fp, "%s", str);
+              isstmt++;
+              continue;
+            }
+          else if (isstmt == 2)
+            {
+              trannum (str);
+              if (strindex (str, "skip ORDER BY") > -1 || strindex (str, "skip GROUP BY") > -1)
+                {
+                  fprintf (fp, "%s", str);
+                  isstmt = 0;
+                }
+              continue;
+            }
+        }
+    }
+  strncpy (str, queryPlan + newline, queryPlanLen - newline);
+  str[queryPlanLen - newline] = '\0';
+  fprintf (fp, "%s", str);
+
+  free (str);
+  free (p);
+}
+
+
 int
-dumptable (FILE * fp, int req, char con, bool hasqueryplan, bool onlyjoingraph)
+dumptable (FILE * fp, int req, char con, bool hasqueryplan, bool onlyjoingraph, bool hasfullplan)
 {
   int res = 0;
   int ind = 0, index_count = 0, col_count = 0, setsize = -1, index_set = 0;
@@ -1515,11 +1673,15 @@ _NEXT_MULTIPLE_LINE_SQL:
                {
                  formatjoingraph (fp, plan);
                }
+             else if (hasfullplan)
+               {
+                 formatfullplan (fp, plan);
+               }
              else
                {
                  formatplan (fp, plan);
                }
-		  }
+      }
 	      }
 	    }
 
@@ -1562,6 +1724,10 @@ _PRINT_QUERY_PLAN:
       if (onlyjoingraph)
         {
            formatjoingraph (fp, plan);
+        }
+      else if (hasfullplan)
+        {
+           formatfullplan (fp, plan);
         }
       else
         {
@@ -1645,9 +1811,9 @@ get_server_output (FILE * fp, char conn)
   if (req < 0)
     {
       /* if phase-0 */
-      static const char *sql2 = "CALL GET_LINE (?, ?)";
+      sql = "CALL GET_LINE (?, ?)";
 
-      req = cci_prepare (conn, sql2, CCI_PREPARE_CALL, &error);
+      req = cci_prepare (conn, sql, CCI_PREPARE_CALL, &error);
       if (req < 0)
         {
           fprintf (stdout, "Get Server-Output Error:%d\n", error.err_code);
@@ -1770,6 +1936,7 @@ execute (FILE * fp, char conn, const SqlStateStruce *pSqlState)
   char *sql = pSqlState->sql;
   bool hasqueryplan = pSqlState->hasqp;
   bool onlyjoingraph = pSqlState->onlyjg;
+  bool hasfullplan = pSqlState->hasfullp;
 
   fprintf (fp, "===================================================\n");
 
@@ -1825,10 +1992,10 @@ execute (FILE * fp, char conn, const SqlStateStruce *pSqlState)
   if (cmd_type == CUBRID_STMT_SELECT || cmd_type == CUBRID_STMT_CALL || cmd_type == CUBRID_STMT_EVALUATE
       || cmd_type == CUBRID_STMT_GET_STATS)
     {
-      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph);
+      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph, hasfullplan);
       goto _END;
     }
-  else if (cmd_type == CUBRID_STMT_UPDATE)
+  else if (cmd_type == CUBRID_STMT_UPDATE || cmd_type == CUBRID_STMT_DELETE)
     {
       fprintf (fp, "%d\n", res);
       if (hasqueryplan)
@@ -1842,8 +2009,12 @@ execute (FILE * fp, char conn, const SqlStateStruce *pSqlState)
 	  if (res >= 0)
 	    {
 	      if (onlyjoingraph)
-	        { 
+	        {
 	          formatjoingraph (fp, plan);
+	        }
+	      else if (hasfullplan)
+	        {
+	          formatfullplan (fp, plan);
 	        }
 	      else
 	        {
@@ -1874,7 +2045,7 @@ execute (FILE * fp, char conn, const SqlStateStruce *pSqlState)
       res_col_info = cci_get_result_info (req, &cmd_type, &col_count);
       if (cmd_type == CUBRID_STMT_SELECT || cmd_type == CUBRID_STMT_CALL)
 	{
-	  dumptable (fp, req, conn, hasqueryplan, onlyjoingraph);
+	  dumptable (fp, req, conn, hasqueryplan, onlyjoingraph, hasfullplan);
 	}
       else
 	{
@@ -1886,7 +2057,7 @@ execute (FILE * fp, char conn, const SqlStateStruce *pSqlState)
 _END:
   if (server_output_buffer)
     {
-      fprintf (fp, server_output_buffer);
+      fprintf (fp, "%s", server_output_buffer);
     }
   if (req > 0)
     cci_close_req_handle (req);
@@ -1912,6 +2083,7 @@ executebind (FILE * fp, char conn, char *param, const SqlStateStruce *pSqlState)
   char *sql = pSqlState->sql;
   bool hasqueryplan = pSqlState->hasqp;
   bool onlyjoingraph = pSqlState->onlyjg;
+  bool hasfullplan = pSqlState->hasfullp;
   bool iscall = pSqlState->iscallwithoutvalue;
   fprintf (fp, "===================================================\n");
 
@@ -2036,7 +2208,7 @@ executebind (FILE * fp, char conn, char *param, const SqlStateStruce *pSqlState)
   res_col_info = cci_get_result_info (req, &cmd_type, &col_count);
   if (cmd_type == CUBRID_STMT_SELECT || cmd_type == CUBRID_STMT_CALL)
     {
-      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph);
+      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph, hasfullplan);
     }
   else
     {
@@ -2056,7 +2228,7 @@ executebind (FILE * fp, char conn, char *param, const SqlStateStruce *pSqlState)
 	  res_col_info = cci_get_result_info (req, &cmd_type, &col_count);
 	  if (cmd_type == CUBRID_STMT_SELECT || cmd_type == CUBRID_STMT_CALL)
 	    {
-	      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph);
+	      dumptable (fp, req, conn, hasqueryplan, onlyjoingraph, hasfullplan);
 	    }
 	  else
 	    {
@@ -2068,7 +2240,7 @@ executebind (FILE * fp, char conn, char *param, const SqlStateStruce *pSqlState)
 _END:
   if (server_output_buffer)
     {
-      fprintf (fp, server_output_buffer);
+      fprintf (fp, "%s", server_output_buffer);
     }
   if (req > 0)
     cci_close_req_handle (req);
