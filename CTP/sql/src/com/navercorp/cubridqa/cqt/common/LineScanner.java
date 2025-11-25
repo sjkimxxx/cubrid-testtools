@@ -24,7 +24,7 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package com.navercorp.cubridqa.cqt.common;
-
+  
 // This class is a porting of csql_walk_statement() function
 // contained in $CUBRID/src/executables/csql_support.c
 
