@@ -24,7 +24,7 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package com.navercorp.cubridqa.cqt.model;
-
+ 
 import com.navercorp.cubridqa.cqt.console.ConsoleAgent;
 import com.navercorp.cubridqa.cqt.console.util.CommonFileUtile;
 import com.thoughtworks.xstream.annotations.XStreamAlias;
