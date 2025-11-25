@@ -40,7 +40,7 @@ class LineScanner {
         plcsqlBeginEndBalance = 0;
         plcsqlNestLevel = 0;
     }
-
+   
     boolean isStatementEnd() {
         return (state == State.STATEMENT_END);
     }
