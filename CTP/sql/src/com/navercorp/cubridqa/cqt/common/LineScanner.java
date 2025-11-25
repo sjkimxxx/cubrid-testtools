@@ -27,7 +27,7 @@ package com.navercorp.cubridqa.cqt.common;
     
 // This class is a porting of csql_walk_statement() function
 // contained in $CUBRID/src/executables/csql_support.c
-
+   
 class LineScanner {
 
     LineScanner() {
