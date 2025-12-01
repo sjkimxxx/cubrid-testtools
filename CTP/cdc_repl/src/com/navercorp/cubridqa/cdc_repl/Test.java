@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
-
+  
 import com.navercorp.cubridqa.common.CommonUtils;
 import com.navercorp.cubridqa.common.Log;
 import com.navercorp.cubridqa.cdc_repl.common.Constants;
