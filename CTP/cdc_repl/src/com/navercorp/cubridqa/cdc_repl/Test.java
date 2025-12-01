@@ -23,7 +23,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 package com.navercorp.cubridqa.cdc_repl;
-       
+         
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
